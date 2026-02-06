@@ -263,5 +263,6 @@ async function sendLogSimple(payload) {
   document.getElementById("analyze-btn")?.addEventListener("click", () => {
     sendLogSimple({ ts: Date.now(), review: reviewText, sentiment: sentimentResult, meta: baseMeta });
   });
+  
 
 })();
