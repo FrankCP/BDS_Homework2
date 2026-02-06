@@ -149,7 +149,7 @@ async function analyzeRandomReview() {
     await sendLogSimple({
       ts: Date.now(),
       review: selectedReview,
-      sentiment: `${bucket}|${label}`,
+      sentiment: `${label}`,
       confidence: (score * 100).toFixed(1),
       meta: JSON.stringify(meta),
     });
