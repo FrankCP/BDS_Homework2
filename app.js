@@ -229,3 +229,39 @@ function showError(message) {
 function hideError() {
   errorElement.style.display = "none";
 }
+
+
+
+
+async function sendLogSimple(payload) {
+  const url = "https://script.google.com/macros/s/AKfycbwdE0h5ZfxfkeNFdv4u1Xh35y5OHAkSF3NOWR4-p_GrAKi3khZqYhvyQ-vj1MX6tDmE/exec";
+
+  const form = new URLSearchParams();
+  form.set("ts", String(payload.ts || Date.now()));
+  form.set("review", payload.review || "");
+  form.set("sentiment", payload.sentiment || "");
+  form.set("meta", JSON.stringify(payload.meta || {}));
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      body: form // application/x-www-form-urlencoded; no headers to avoid preflight
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+    return text;
+  } catch (err) {
+    return `ERROR: ${String(err)}`;
+  }
+}
+
+/** Wire UI interactions. */
+(function init() {
+
+  const baseMeta = { page: location.pathname, ua: navigator.userAgent };
+
+  document.getElementById("analyze-btn")?.addEventListener("click", () => {
+    sendLogSimple({ ts: Date.now(), review: reviewText, sentiment: sentimentResult, userId, meta: baseMeta });
+  });
+
+})();
