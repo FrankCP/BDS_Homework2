@@ -261,7 +261,7 @@ async function sendLogSimple(payload) {
   const baseMeta = { page: location.pathname, ua: navigator.userAgent };
 
   document.getElementById("analyze-btn")?.addEventListener("click", () => {
-    sendLogSimple({ ts: Date.now(), review: reviewText.textContent, sentiment: sentiment, meta: baseMeta });
+    sendLogSimple({ ts: Date.now(), review: reviewText.textContent, sentiment: sentimentResult.textContent, meta: baseMeta });
   });
 
 
