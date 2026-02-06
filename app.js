@@ -133,7 +133,7 @@ async function analyzeRandomReview() {
 
   try {
     const result = await analyzeSentiment(selectedReview);
-    const { label, score, bucket } = displaySentiment(result);
+    const { label, score } = displaySentiment(result);
 
     // ✅ POST AFTER we have the final sentiment
     const meta = {
@@ -141,10 +141,16 @@ async function analyzeRandomReview() {
       ua: navigator.userAgent
     };
 
+    const sentimentLabel =
+    label === "POSITIVE" ? "POSITIVE" :
+    label === "NEGATIVE" ? "NEGATIVE" :
+    "NEUTRAL";
+
     await sendLogSimple({
       ts: Date.now(),
       review: selectedReview,
-      sentiment: `${bucket}|${label}|${(score * 100).toFixed(1)}`,
+      sentiment: `${bucket}|${label}`,
+      confidence: (score * 100).toFixed(1),
       meta: JSON.stringify(meta),
     });
 
@@ -227,12 +233,13 @@ function hideError() {
 
 
 async function sendLogSimple(payload) {
-  const url = "https://script.google.com/macros/s/AKfycbwdE0h5ZfxfkeNFdv4u1Xh35y5OHAkSF3NOWR4-p_GrAKi3khZqYhvyQ-vj1MX6tDmE/exec";
+  const url = "https://script.google.com/macros/s/AKfycbwiq8PPImb-m7F5qF9BeCJaBk8wzz4obdGI2KDWfzWq32vdHnK9UDOmfgT1xiE8F-rL/exec";
 
   const form = new URLSearchParams();
   form.set("ts", String(payload.ts || Date.now()));
   form.set("review", payload.review || "");
   form.set("sentiment", payload.sentiment || "");
+  form.set("confidence", String(payload.confidence ?? ""));
   form.set("meta", JSON.stringify(payload.meta || {}));
 
   try {
