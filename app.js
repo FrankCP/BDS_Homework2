@@ -106,7 +106,7 @@ function saveApiToken() {
 }
 
 // Analyze a random review
-function analyzeRandomReview() {
+async function analyzeRandomReview() {
   hideError();
 
   if (!Array.isArray(reviews) || reviews.length === 0) {
@@ -131,17 +131,30 @@ function analyzeRandomReview() {
   sentimentResult.innerHTML = ""; // Reset previous result
   sentimentResult.className = "sentiment-result"; // Reset classes
 
-  // Call local sentiment model (transformers.js)
-  analyzeSentiment(selectedReview)
-    .then((result) => displaySentiment(result))
-    .catch((error) => {
-      console.error("Error:", error);
-      showError(error.message || "Failed to analyze sentiment.");
-    })
-    .finally(() => {
-      loadingElement.style.display = "none";
-      analyzeBtn.disabled = false;
+  try {
+    const result = await analyzeSentiment(selectedReview);
+    const { label, score, bucket } = displaySentiment(result);
+
+    // ✅ POST AFTER we have the final sentiment
+    const meta = {
+      page: location.pathname,
+      ua: navigator.userAgent
+    };
+
+    await sendLogSimple({
+      ts: Date.now(),
+      review: selectedReview,
+      sentiment: `${bucket}|${label}|${(score * 100).toFixed(1)}`,
+      meta: JSON.stringify(meta),
     });
+
+  } catch (error) {
+    console.error(error);
+    showError(error.message || "Failed to analyze sentiment.");
+  } finally {
+    loadingElement.style.display = "none";
+    analyzeBtn.disabled = false;
+  }
 }
 
 // Call local transformers.js pipeline for sentiment classification
@@ -164,47 +177,27 @@ async function analyzeSentiment(text) {
 
 // Display sentiment result
 function displaySentiment(result) {
-  // Default to neutral if we can't parse the result
-  let sentiment = "neutral";
+  let bucket = "neutral";
   let score = 0.5;
   let label = "NEUTRAL";
 
-  // Expected format: [[{label: 'POSITIVE', score: 0.99}]]
-  if (
-    Array.isArray(result) &&
-    result.length > 0 &&
-    Array.isArray(result[0]) &&
-    result[0].length > 0
-  ) {
+  if (Array.isArray(result) && result[0]?.[0]) {
     const sentimentData = result[0][0];
+    label = (sentimentData.label || "NEUTRAL").toUpperCase();
+    score = typeof sentimentData.score === "number" ? sentimentData.score : 0.5;
 
-    if (sentimentData && typeof sentimentData === "object") {
-      label =
-        typeof sentimentData.label === "string"
-          ? sentimentData.label.toUpperCase()
-          : "NEUTRAL";
-      score =
-        typeof sentimentData.score === "number"
-          ? sentimentData.score
-          : 0.5;
-
-      // Determine sentiment bucket
-      if (label === "POSITIVE" && score > 0.5) {
-        sentiment = "positive";
-      } else if (label === "NEGATIVE" && score > 0.5) {
-        sentiment = "negative";
-      } else {
-        sentiment = "neutral";
-      }
-    }
+    if (label === "POSITIVE" && score > 0.5) bucket = "positive";
+    else if (label === "NEGATIVE" && score > 0.5) bucket = "negative";
   }
 
-  // Update UI
-  sentimentResult.classList.add(sentiment);
+  sentimentResult.className = "sentiment-result";
+  sentimentResult.classList.add(bucket);
   sentimentResult.innerHTML = `
-        <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
-        <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
-    `;
+    <i class="fas ${getSentimentIcon(bucket)} icon"></i>
+    <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
+  `;
+
+  return { label, score, bucket };
 }
 
 // Get appropriate icon for sentiment bucket
@@ -254,15 +247,3 @@ async function sendLogSimple(payload) {
     return `ERROR: ${String(err)}`;
   }
 }
-
-/** Wire UI interactions. */
-(function init() {
-
-  const baseMeta = { page: location.pathname, ua: navigator.userAgent };
-
-  document.getElementById("analyze-btn")?.addEventListener("click", () => {
-    sendLogSimple({ ts: Date.now(), review: selectedReview, sentiment: sentimentResult.className, meta: baseMeta });
-  });
-
-
-})();
